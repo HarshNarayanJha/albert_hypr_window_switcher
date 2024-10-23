@@ -10,10 +10,8 @@ import json
 from dataclasses import dataclass
 from shutil import which
 import subprocess
-import typing
 
-from typing import Any
-from typing import List
+from typing import Any, List
 
 from albert import (  # type: ignore
     Action,
@@ -92,6 +90,14 @@ class Window:
         self.grouped = grouped
 
     @staticmethod
+    def current_workspace_id() -> int:
+        output = json.loads(
+            subprocess.check_output(["hyprctl", "activeworkspace", "-j"])
+        )
+        id = output["id"]
+        return id
+
+    @staticmethod
     def list_windows() -> List["Window"]:
         windows = []
         for win_data in json.loads(
@@ -117,6 +123,7 @@ class Plugin(PluginInstance, TriggerQueryHandler):
 
     def handleTriggerQuery(self, query: Query):
         windows = Window.list_windows()
+        current_workspace = Window.current_workspace_id()
 
         m = Matcher(query.string)
 
@@ -129,21 +136,41 @@ class Plugin(PluginInstance, TriggerQueryHandler):
             or m.match(w.initialTitle)
         ]
 
-        query.add([self._make_item(window, query) for window in windows])
+        query.add(
+            [self._make_item(current_workspace, window, query) for window in windows]
+        )
 
-    def _make_item(self, window: Window, query: Query) -> Item:
+    def _make_item(self, workspace_id: int, window: Window, query: Query) -> Item:
         return StandardItem(
             id=str(window.address),
             text=window.title,
             subtext=window.classs,
             inputActionText=query.trigger + window.title,
-            iconUrls=[f"file:{window.classs}"],
+            iconUrls=[f"xdg:{window.classs}"],
             actions=[
                 Action(
                     "Switch",
                     "Switch to Window",
                     lambda: runDetachedProcess(
                         ["hyprctl", "dispatch", "focuswindow", window.classs]
+                    ),
+                ),
+                Action(
+                    "Move Here",
+                    "Move to this Workspace",
+                    # FIXME: Not working as expected
+                    lambda: runDetachedProcess(
+                        [
+                            "hyprctl",
+                            "dispatch",
+                            "focuswindow",
+                            window.classs,
+                            "&&",
+                            "hyprctl",
+                            "dispatch",
+                            "movetoworkspace",
+                            str(workspace_id),
+                        ]
                     ),
                 ),
             ],
