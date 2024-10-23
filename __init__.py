@@ -6,13 +6,28 @@ This plugin allows you to quickly search through and switch to open windows on H
 Disclaimer: This plugin has no affiliation with Hyprland.. The icons are used under the terms specified there.
 """
 
-from albert import (
+import json
+from dataclasses import dataclass
+from shutil import which
+import subprocess
+import typing
+
+from typing import Any
+from typing import List
+
+from albert import (  # type: ignore
     Action,
-    Item, Matcher, Query, StandardItem,
-    GlobalQueryHandler, TriggerQueryHandler, PluginInstance
+    Item,
+    Matcher,
+    Query,
+    StandardItem,
+    GlobalQueryHandler,
+    TriggerQueryHandler,
+    PluginInstance,
+    runDetachedProcess,
 )
 
-md_iid = '2.3'
+md_iid = "2.3"
 md_version = "0.1"
 md_name = "Hyprland Window Switcher"
 md_description = "Switch to your open windows on Hyprland swiftly"
@@ -20,5 +35,125 @@ md_license = "MIT"
 md_url = "https://github.com/HarshNarayanJha/albert_hypr_window_switcher"
 md_authors = ["@HarshNarayanJha"]
 
-class Plugin(PluginInstance, GlobalQueryHandler, TriggerQueryHandler):
-    pass
+
+@dataclass
+class Window:
+    address: str
+    title: str
+    classs: str
+    initialTitle: str
+    initialClass: str
+    at: tuple[int, int]
+    size: tuple[int, int]
+    workspace: dict[str, Any]
+    floating: bool
+    hidden: bool
+    monitor: int
+    pid: int
+    xwayland: bool
+    pinned: bool
+    fullscreen: bool
+    grouped: List[str]
+
+    def __init__(
+        self,
+        address: str,
+        title: str,
+        initialTitle: str,
+        initialClass: str,
+        at: tuple[int, int],
+        size: tuple[int, int],
+        workspace: dict[str, Any],
+        floating: bool,
+        hidden: bool,
+        monitor: int,
+        pid: int,
+        xwayland: bool,
+        pinned: bool,
+        fullscreen: bool,
+        grouped: List[str],
+        **kwargs,
+    ) -> None:
+        self.address = address
+        self.title = title
+        self.classs = kwargs["class"]
+        self.initialTitle = initialTitle
+        self.initialClass = initialClass
+        self.at = at
+        self.size = size
+        self.workspace = workspace
+        self.floating = floating
+        self.hidden = hidden
+        self.monitor = monitor
+        self.pid = pid
+        self.xwayland = xwayland
+        self.pinned = pinned
+        self.fullscreen = fullscreen
+        self.grouped = grouped
+
+    @staticmethod
+    def list_windows() -> List["Window"]:
+        windows = []
+        for win_data in json.loads(
+            subprocess.check_output(["hyprctl", "clients", "-j"])
+        ):
+            win = Window(**win_data)
+            windows.append(win)
+
+        return windows
+
+
+class Plugin(PluginInstance, TriggerQueryHandler):
+    def __init__(self):
+        PluginInstance.__init__(self)
+        TriggerQueryHandler.__init__(
+            self, self.id, self.name, self.description, defaultTrigger="w "
+        )
+
+        if which("hyprctl") is None:
+            raise Exception(
+                "'hyprctl' not in $PATH, you sure you are running hyprland?"
+            )
+
+    def handleTriggerQuery(self, query: Query):
+        windows = Window.list_windows()
+
+        m = Matcher(query.string)
+
+        windows = [
+            w
+            for w in windows
+            if m.match(w.classs)
+            or m.match(w.title)
+            or m.match(w.initialClass)
+            or m.match(w.initialTitle)
+        ]
+
+        query.add([self._make_item(window, query) for window in windows])
+
+    def _make_item(self, window: Window, query: Query) -> Item:
+        return StandardItem(
+            id=str(window.address),
+            text=window.title,
+            subtext=window.classs,
+            inputActionText=query.trigger + window.title,
+            iconUrls=[f"file:{window.classs}"],
+            actions=[
+                Action(
+                    "Switch",
+                    "Switch to Window",
+                    lambda: runDetachedProcess(
+                        ["hyprctl", "dispatch", "focuswindow", window.classs]
+                    ),
+                ),
+            ],
+        )
+
+    def configWidget(self):
+        return [
+            {
+                "type": "label",
+                "text": str(__doc__).strip(),
+                "widget_properties": {"textFormat": "Qt::MarkdownText"},
+            }
+        ]
