@@ -107,6 +107,9 @@ class Window:
             subprocess.check_output(["hyprctl", "clients", "-j"])
         ):
             win = Window(**win_data)
+
+            if win.classs == "albert":
+                continue
             windows.append(win)
 
         return windows
