@@ -52,6 +52,7 @@ class Window:
     pinned: bool
     fullscreen: bool
     grouped: List[str]
+    focusHistoryID: int
 
     def __init__(
         self,
@@ -70,6 +71,7 @@ class Window:
         pinned: bool,
         fullscreen: bool,
         grouped: List[str],
+        focusHistoryID: int,
         **kwargs,
     ) -> None:
         self.address = address
@@ -88,6 +90,7 @@ class Window:
         self.pinned = pinned
         self.fullscreen = fullscreen
         self.grouped = grouped
+        self.focusHistoryID = focusHistoryID
 
     @staticmethod
     def current_workspace_id() -> int:
@@ -135,6 +138,9 @@ class Plugin(PluginInstance, TriggerQueryHandler):
             or m.match(w.initialClass)
             or m.match(w.initialTitle)
         ]
+
+        # sort by focus history
+        windows.sort(key=lambda x: x.focusHistoryID)
 
         query.add(
             [self._make_item(current_workspace, window, query) for window in windows]
