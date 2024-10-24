@@ -18,9 +18,9 @@ from albert import (  # type: ignore
     Item,
     Matcher,
     Query,
+    RankItem,
     StandardItem,
     GlobalQueryHandler,
-    TriggerQueryHandler,
     PluginInstance,
     runDetachedProcess,
 )
@@ -115,10 +115,10 @@ class Window:
         return windows
 
 
-class Plugin(PluginInstance, TriggerQueryHandler):
+class Plugin(PluginInstance, GlobalQueryHandler):
     def __init__(self):
         PluginInstance.__init__(self)
-        TriggerQueryHandler.__init__(
+        GlobalQueryHandler.__init__(
             self, self.id, self.name, self.description, defaultTrigger="w "
         )
 
@@ -127,7 +127,9 @@ class Plugin(PluginInstance, TriggerQueryHandler):
                 "'hyprctl' not in $PATH, you sure you are running hyprland?"
             )
 
-    def handleTriggerQuery(self, query: Query):
+    def handleGlobalQuery(self, query: Query) -> List[RankItem]:
+        rank_items = []
+
         windows = Window.list_windows()
         current_workspace = Window.current_workspace_id()
 
@@ -143,25 +145,35 @@ class Plugin(PluginInstance, TriggerQueryHandler):
         ]
 
         # sort by focus history
-        windows.sort(key=lambda x: x.focusHistoryID)
+        windows.sort(key=lambda x: x.focusHistoryID, reverse=True)
 
-        query.add(
-            [self._make_item(current_workspace, window, query) for window in windows]
+        rank_items.extend(
+            [
+                RankItem(self._make_item(current_workspace, window, query), 1)
+                for window in windows
+            ]
         )
+
+        return rank_items
 
     def _make_item(self, workspace_id: int, window: Window, query: Query) -> Item:
         return StandardItem(
             id=str(window.address),
-            text=window.title,
-            subtext=window.classs,
-            inputActionText=query.trigger + window.title,
+            text=window.classs,
+            subtext=window.title,
+            inputActionText=query.trigger + window.classs,
             iconUrls=[f"xdg:{window.classs}"],
             actions=[
                 Action(
                     "Switch",
                     "Switch to Window",
                     lambda: runDetachedProcess(
-                        ["hyprctl", "dispatch", "focuswindow", window.classs]
+                        [
+                            "hyprctl",
+                            "dispatch",
+                            "focuswindow",
+                            f"title:^({window.title})$",
+                        ]
                     ),
                 ),
                 Action(
@@ -173,7 +185,7 @@ class Plugin(PluginInstance, TriggerQueryHandler):
                             "hyprctl",
                             "dispatch",
                             "focuswindow",
-                            window.classs,
+                            f"title:^({window.title})$",
                             "&&",
                             "hyprctl",
                             "dispatch",
