@@ -93,18 +93,36 @@ class Window:
         self.grouped = grouped
         self.focusHistoryID = focusHistoryID
 
-        self.findIconPath()
+        self.parseDesktopFile()
+        self.name = self.name or self.classs
+        self.icon = self.icon or 'binary'
 
-    def findIconPath(self) -> None:
+    def parseDesktopFile(self) -> None:
         desktopFile = Path(f"/usr/share/applications/{self.classs}.desktop")
+        self.name = ""
         self.icon = None
+
+        current_section = ""
 
         if desktopFile.exists():
             with open(desktopFile, "r") as fp:
                 while line := fp.readline():
-                    if line.startswith("Icon="):
-                        self.icon = line.strip().split("=")[1]
-                        break
+                    line = line.strip()
+
+                    if line.startswith("["):
+                        current_section = line.strip("][")
+                    elif (
+                        not self.icon
+                        and line.startswith("Icon=")
+                        and current_section == "Desktop Entry"
+                    ):
+                        self.icon = line.split("=")[1]
+                    elif (
+                        not self.name
+                        and line.startswith("Name=")
+                        and current_section == "Desktop Entry"
+                    ):
+                        self.name = line.split("=")[1]
 
     @staticmethod
     def current_workspace_id() -> int:
@@ -153,6 +171,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
             w
             for w in windows
             if m.match(w.classs)
+            or m.match(w.name)
             or m.match(w.title)
             or m.match(w.initialClass)
             or m.match(w.initialTitle)
@@ -173,9 +192,9 @@ class Plugin(PluginInstance, GlobalQueryHandler):
     def _make_item(self, workspace_id: int, window: Window, query: Query) -> Item:
         return StandardItem(
             id=str(window.address),
-            text=window.classs,
+            text=window.name,
             subtext=window.title,
-            inputActionText=query.trigger + window.classs,
+            inputActionText=query.trigger + window.name,
             iconUrls=[f"xdg:{window.icon}"],
             actions=[
                 Action(
