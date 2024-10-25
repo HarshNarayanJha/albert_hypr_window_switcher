@@ -95,7 +95,7 @@ class Window:
 
         self.parseDesktopFile()
         self.name = self.name or self.classs
-        self.icon = self.icon or 'binary'
+        self.icon = self.icon or "binary"
 
     def parseDesktopFile(self) -> None:
         desktopFile = Path(f"/usr/share/applications/{self.classs}.desktop")
@@ -200,34 +200,43 @@ class Plugin(PluginInstance, GlobalQueryHandler):
                 Action(
                     "Switch",
                     "Switch to Window",
-                    lambda: runDetachedProcess(
-                        [
-                            "hyprctl",
-                            "dispatch",
-                            "focuswindow",
-                            f"title:^({window.title})$",
-                        ]
-                    ),
+                    lambda: self._focus_window(window),
                 ),
                 Action(
                     "Move Here",
                     "Move to this Workspace",
-                    # FIXME: Not working as expected
-                    lambda: runDetachedProcess(
-                        [
-                            "hyprctl",
-                            "dispatch",
-                            "focuswindow",
-                            f"title:^({window.title})$",
-                            "&&",
-                            "hyprctl",
-                            "dispatch",
-                            "movetoworkspace",
-                            str(workspace_id),
-                        ]
-                    ),
+                    lambda: self._move_window_here(window, workspace_id),
                 ),
             ],
+        )
+
+    def _focus_window(self, window: Window) -> None:
+        runDetachedProcess(
+            [
+                "hyprctl",
+                "dispatch",
+                "focuswindow",
+                f"address:{window.address}",
+            ]
+        )
+
+    def _move_window_here(self, window: Window, workspace_id: int) -> None:
+        runDetachedProcess(
+            [
+                "hyprctl",
+                "dispatch",
+                "focuswindow",
+                f"address:{window.address}",
+            ]
+        )
+
+        runDetachedProcess(
+            [
+                "hyprctl",
+                "dispatch",
+                "movetoworkspace",
+                str(workspace_id),
+            ]
         )
 
     def configWidget(self):
