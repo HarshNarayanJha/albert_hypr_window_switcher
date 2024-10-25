@@ -9,6 +9,7 @@ Disclaimer: This plugin has no affiliation with Hyprland.. The icons are used un
 import json
 from dataclasses import dataclass
 from shutil import which
+from pathlib import Path
 import subprocess
 
 from typing import Any, List
@@ -92,6 +93,19 @@ class Window:
         self.grouped = grouped
         self.focusHistoryID = focusHistoryID
 
+        self.findIconPath()
+
+    def findIconPath(self) -> None:
+        desktopFile = Path(f"/usr/share/applications/{self.classs}.desktop")
+        self.icon = None
+
+        if desktopFile.exists():
+            with open(desktopFile, "r") as fp:
+                while line := fp.readline():
+                    if line.startswith("Icon="):
+                        self.icon = line.strip().split("=")[1]
+                        break
+
     @staticmethod
     def current_workspace_id() -> int:
         output = json.loads(
@@ -162,7 +176,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
             text=window.classs,
             subtext=window.title,
             inputActionText=query.trigger + window.classs,
-            iconUrls=[f"xdg:{window.classs}"],
+            iconUrls=[f"xdg:{window.icon}"],
             actions=[
                 Action(
                     "Switch",
