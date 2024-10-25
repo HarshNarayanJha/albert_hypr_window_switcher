@@ -192,7 +192,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
     def _make_item(self, workspace_id: int, window: Window, query: Query) -> Item:
         return StandardItem(
             id=str(window.address),
-            text=window.name,
+            text=f"Window: {window.name}",
             subtext=window.title,
             inputActionText=query.trigger + window.name,
             iconUrls=[f"xdg:{window.icon}"],
