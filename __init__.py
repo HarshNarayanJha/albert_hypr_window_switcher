@@ -26,7 +26,7 @@ from albert import (  # type: ignore
 )
 
 md_iid = "2.3"
-md_version = "0.1"
+md_version = "0.2"
 md_name = "Hyprland Window Switcher"
 md_description = "Switch to your open windows on Hyprland swiftly"
 md_license = "MIT"
