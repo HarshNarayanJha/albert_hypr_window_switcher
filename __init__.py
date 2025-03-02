@@ -7,22 +7,21 @@ Disclaimer: This plugin has no affiliation with Hyprland.. The icons are used un
 """
 
 import json
-from dataclasses import dataclass
-from shutil import which
-from pathlib import Path
 import subprocess
-
-from typing import Any, List
+from dataclasses import dataclass
+from pathlib import Path
+from shutil import which
+from typing import Any
 
 from albert import (  # type: ignore
     Action,
+    GlobalQueryHandler,
     Item,
     Matcher,
+    PluginInstance,
     Query,
     RankItem,
     StandardItem,
-    GlobalQueryHandler,
-    PluginInstance,
     runDetachedProcess,
 )
 
@@ -52,7 +51,7 @@ class Window:
     xwayland: bool
     pinned: bool
     fullscreen: bool
-    grouped: List[str]
+    grouped: list[str]
     focusHistoryID: int
 
     def __init__(
@@ -71,7 +70,7 @@ class Window:
         xwayland: bool,
         pinned: bool,
         fullscreen: bool,
-        grouped: List[str],
+        grouped: list[str],
         focusHistoryID: int,
         **kwargs,
     ) -> None:
@@ -133,7 +132,7 @@ class Window:
         return id
 
     @staticmethod
-    def list_windows() -> List["Window"]:
+    def list_windows() -> list["Window"]:
         windows = []
         for win_data in json.loads(
             subprocess.check_output(["hyprctl", "clients", "-j"])
@@ -159,7 +158,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
                 "'hyprctl' not in $PATH, you sure you are running hyprland?"
             )
 
-    def handleGlobalQuery(self, query: Query) -> List[RankItem]:
+    def handleGlobalQuery(self, query: Query) -> list[RankItem]:
         rank_items = []
 
         windows = Window.list_windows()
