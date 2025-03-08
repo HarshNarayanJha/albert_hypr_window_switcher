@@ -25,8 +25,8 @@ from albert import (  # type: ignore
     runDetachedProcess,
 )
 
-md_iid = "2.3"
-md_version = "0.2"
+md_iid = "3.0"
+md_version = "1.0"
 md_name = "Hyprland Window Switcher"
 md_description = "Switch to your open windows on Hyprland swiftly"
 md_license = "MIT"
@@ -149,14 +149,18 @@ class Window:
 class Plugin(PluginInstance, GlobalQueryHandler):
     def __init__(self):
         PluginInstance.__init__(self)
-        GlobalQueryHandler.__init__(
-            self, self.id, self.name, self.description, defaultTrigger="w "
-        )
+        GlobalQueryHandler.__init__(self)
 
         if which("hyprctl") is None:
             raise Exception(
                 "'hyprctl' not in $PATH, you sure you are running hyprland?"
             )
+
+    def defaultTrigger(self):
+        return "w "
+
+    def synopsis(self, query):
+        return "<window title|app name>"
 
     def handleGlobalQuery(self, query: Query) -> list[RankItem]:
         rank_items = []
