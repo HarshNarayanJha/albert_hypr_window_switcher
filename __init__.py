@@ -3,7 +3,7 @@
 """
 This plugin allows you to quickly search through and switch to open windows on Hyprland
 
-Disclaimer: This plugin has no affiliation with Hyprland.. The icons are used under the terms specified there.
+Disclaimer: This plugin has no affiliation with Hyprland. The icons are used under the terms specified there.
 """
 
 import json
@@ -26,10 +26,11 @@ from albert import (  # type: ignore
 )
 
 md_iid = "3.0"
-md_version = "1.0"
+md_version = "1.1"
 md_name = "Hyprland Window Switcher"
 md_description = "Switch to your open windows on Hyprland swiftly"
 md_license = "MIT"
+md_bin_dependencies = ["hyprctl"]
 md_url = "https://github.com/HarshNarayanJha/albert_hypr_window_switcher"
 md_authors = ["@HarshNarayanJha"]
 
@@ -98,6 +99,9 @@ class Window:
 
     def parseDesktopFile(self) -> None:
         desktopFile = Path(f"/usr/share/applications/{self.classs}.desktop")
+        if not desktopFile.exists():
+            desktopFile = Path(f"/usr/share/applications/{self.classs.split('.')[-1]}.desktop")
+
         self.name = ""
         self.icon = None
 
@@ -110,33 +114,21 @@ class Window:
 
                     if line.startswith("["):
                         current_section = line.strip("][")
-                    elif (
-                        not self.icon
-                        and line.startswith("Icon=")
-                        and current_section == "Desktop Entry"
-                    ):
+                    elif not self.icon and line.startswith("Icon=") and current_section == "Desktop Entry":
                         self.icon = line.split("=")[1]
-                    elif (
-                        not self.name
-                        and line.startswith("Name=")
-                        and current_section == "Desktop Entry"
-                    ):
+                    elif not self.name and line.startswith("Name=") and current_section == "Desktop Entry":
                         self.name = line.split("=")[1]
 
     @staticmethod
     def current_workspace_id() -> int:
-        output = json.loads(
-            subprocess.check_output(["hyprctl", "activeworkspace", "-j"])
-        )
+        output = json.loads(subprocess.check_output(["hyprctl", "activeworkspace", "-j"]))
         id = output["id"]
         return id
 
     @staticmethod
     def list_windows() -> list["Window"]:
         windows = []
-        for win_data in json.loads(
-            subprocess.check_output(["hyprctl", "clients", "-j"])
-        ):
+        for win_data in json.loads(subprocess.check_output(["hyprctl", "clients", "-j"])):
             win = Window(**win_data)
 
             if win.classs == "albert":
@@ -152,9 +144,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         GlobalQueryHandler.__init__(self)
 
         if which("hyprctl") is None:
-            raise Exception(
-                "'hyprctl' not in $PATH, you sure you are running hyprland?"
-            )
+            raise Exception("'hyprctl' not in $PATH, you sure you are running hyprland?")
 
     def defaultTrigger(self):
         return "w "
@@ -183,12 +173,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         # sort by focus history
         windows.sort(key=lambda x: x.focusHistoryID, reverse=True)
 
-        rank_items.extend(
-            [
-                RankItem(self._make_item(current_workspace, window, query), 1)
-                for window in windows
-            ]
-        )
+        rank_items.extend([RankItem(self._make_item(current_workspace, window, query), 1) for window in windows])
 
         return rank_items
 
@@ -197,7 +182,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
             id=str(window.address),
             text=f"Window: {window.name}",
             subtext=window.title,
-            inputActionText=query.trigger + window.name,
+            inputActionText="Window %s" % window.name,
             iconUrls=[f"xdg:{window.icon}"],
             actions=[
                 Action(
@@ -209,6 +194,11 @@ class Plugin(PluginInstance, GlobalQueryHandler):
                     "Move Here",
                     "Move to this Workspace",
                     lambda: self._move_window_here(window, workspace_id),
+                ),
+                Action(
+                    "Close",
+                    "Close Window",
+                    lambda: self._close_window(window),
                 ),
             ],
         )
@@ -239,6 +229,16 @@ class Plugin(PluginInstance, GlobalQueryHandler):
                 "dispatch",
                 "movetoworkspace",
                 str(workspace_id),
+            ]
+        )
+
+    def _close_window(self, window: Window) -> None:
+        runDetachedProcess(
+            [
+                "hyprctl",
+                "dispatch",
+                "closewindow",
+                f"address:{window.address}",
             ]
         )
 
