@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Harsh Narayan Jha
+# Copyright (c) 2025 Harsh Narayan Jha
 
 """
 This plugin allows you to quickly search through and switch to open windows on Hyprland
@@ -11,9 +11,9 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import which
-from typing import Any
+from typing import Any, override
 
-from albert import (  # type: ignore
+from albert import (  # pyright: ignore[reportMissingModuleSource]
     Action,
     GlobalQueryHandler,
     Item,
@@ -22,17 +22,19 @@ from albert import (  # type: ignore
     Query,
     RankItem,
     StandardItem,
+    makeThemeIcon,
     runDetachedProcess,
 )
 
-md_iid = "3.0"
-md_version = "1.1"
+md_iid = "4.0"
+md_version = "2.0"
 md_name = "Hyprland Window Switcher"
 md_description = "Switch to your open windows on Hyprland swiftly"
 md_license = "MIT"
 md_bin_dependencies = ["hyprctl"]
 md_url = "https://github.com/HarshNarayanJha/albert_hypr_window_switcher"
 md_authors = ["@HarshNarayanJha"]
+md_maintainers = ["@HarshNarayanJha"]
 
 
 @dataclass
@@ -54,6 +56,8 @@ class Window:
     fullscreen: bool
     grouped: list[str]
     focusHistoryID: int
+    name: str
+    icon: str
 
     def __init__(
         self,
@@ -95,7 +99,7 @@ class Window:
 
         self.parseDesktopFile()
         self.name = self.name or self.classs
-        self.icon = self.icon or "binary"
+        self.icon = self.icon
 
     def parseDesktopFile(self) -> None:
         desktopFile = Path(f"/usr/share/applications/{self.classs}.desktop")
@@ -103,7 +107,7 @@ class Window:
             desktopFile = Path(f"/usr/share/applications/{self.classs.split('.')[-1]}.desktop")
 
         self.name = ""
-        self.icon = None
+        self.icon = self.classs
 
         current_section = ""
 
@@ -127,7 +131,7 @@ class Window:
 
     @staticmethod
     def list_windows() -> list["Window"]:
-        windows = []
+        windows: list["Window"] = []
         for win_data in json.loads(subprocess.check_output(["hyprctl", "clients", "-j"])):
             win = Window(**win_data)
 
@@ -143,15 +147,28 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         PluginInstance.__init__(self)
         GlobalQueryHandler.__init__(self)
 
+        self.fuzzy: bool = False
+
         if which("hyprctl") is None:
             raise Exception("'hyprctl' not in $PATH, you sure you are running hyprland?")
 
+    @override
+    def supportsFuzzyMatching(self):
+        return True
+
+    @override
+    def setFuzzyMatching(self, enabled: bool):
+        self.fuzzy = enabled
+
+    @override
     def defaultTrigger(self):
         return "w "
 
+    @override
     def synopsis(self, query):
         return "<window title|app name>"
 
+    @override
     def handleGlobalQuery(self, query: Query) -> list[RankItem]:
         rank_items = []
 
@@ -182,8 +199,8 @@ class Plugin(PluginInstance, GlobalQueryHandler):
             id=str(window.address),
             text=f"Window: {window.name}",
             subtext=window.title,
-            inputActionText="Window %s" % window.name,
-            iconUrls=[f"xdg:{window.icon}"],
+            input_action_text="Window %s" % window.name,
+            icon_factory=lambda: makeThemeIcon(str(window.icon)),
             actions=[
                 Action(
                     "Switch",

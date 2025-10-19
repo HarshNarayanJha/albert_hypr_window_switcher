@@ -1,0 +1,8 @@
+[project]
+name = "albert-hypr-window-switcher"
+version = "2.0"
+description = "Switch to your open windows on Hyprland swiftly"
+readme = "README.md"
+license = "LICENSE"
+requires-python = ">=3.13"
+dependencies = []
