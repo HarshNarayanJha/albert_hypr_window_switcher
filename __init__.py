@@ -17,6 +17,7 @@ from albert import (  # pyright: ignore[reportMissingModuleSource]
     Action,
     GlobalQueryHandler,
     Item,
+    MatchConfig,
     Matcher,
     PluginInstance,
     Query,
@@ -27,7 +28,7 @@ from albert import (  # pyright: ignore[reportMissingModuleSource]
 )
 
 md_iid = "4.0"
-md_version = "2.0"
+md_version = "2.1"
 md_name = "Hyprland Window Switcher"
 md_description = "Switch to your open windows on Hyprland swiftly"
 md_license = "MIT"
@@ -175,7 +176,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         windows = Window.list_windows()
         current_workspace = Window.current_workspace_id()
 
-        m = Matcher(query.string)
+        m = Matcher(query.string, MatchConfig(fuzzy=self.fuzzy))
 
         windows = [
             w
