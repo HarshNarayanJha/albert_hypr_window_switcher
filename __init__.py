@@ -23,6 +23,7 @@ from albert import (  # pyright: ignore[reportMissingModuleSource]
     Query,
     RankItem,
     StandardItem,
+    makeComposedIcon,
     makeThemeIcon,
     runDetachedProcess,
 )
@@ -78,11 +79,11 @@ class Window:
         fullscreen: bool,
         grouped: list[str],
         focusHistoryID: int,
-        **kwargs,
+        **kwargs: dict[str, str],
     ) -> None:
         self.address = address
         self.title = title
-        self.classs = kwargs["class"]
+        self.classs = str(kwargs["class"])
         self.initialTitle = initialTitle
         self.initialClass = initialClass
         self.at = at
@@ -100,7 +101,6 @@ class Window:
 
         self.parseDesktopFile()
         self.name = self.name or self.classs
-        self.icon = self.icon
 
     def parseDesktopFile(self) -> None:
         desktopFile = Path(f"/usr/share/applications/{self.classs}.desktop")
@@ -108,7 +108,7 @@ class Window:
             desktopFile = Path(f"/usr/share/applications/{self.classs.split('.')[-1]}.desktop")
 
         self.name = ""
-        self.icon = self.classs
+        self.icon = ""
 
         current_section = ""
 
@@ -123,6 +123,9 @@ class Window:
                         self.icon = line.split("=")[1]
                     elif not self.name and line.startswith("Name=") and current_section == "Desktop Entry":
                         self.name = line.split("=")[1]
+
+        if not self.icon:
+            self.icon = self.classs
 
     @staticmethod
     def current_workspace_id() -> int:
@@ -166,42 +169,35 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         return "w "
 
     @override
-    def synopsis(self, query):
+    def synopsis(self, query: str):
         return "<window title|app name>"
 
     @override
     def handleGlobalQuery(self, query: Query) -> list[RankItem]:
-        rank_items = []
+        rank_items: list[RankItem] = []
 
         windows = Window.list_windows()
         current_workspace = Window.current_workspace_id()
 
         m = Matcher(query.string, MatchConfig(fuzzy=self.fuzzy))
 
-        windows = [
-            w
-            for w in windows
-            if m.match(w.classs)
-            or m.match(w.name)
-            or m.match(w.title)
-            or m.match(w.initialClass)
-            or m.match(w.initialTitle)
-        ]
+        windows = [w for w in windows if m.match(w.classs) or m.match(w.name) or m.match(w.title)]
 
         # sort by focus history
         windows.sort(key=lambda x: x.focusHistoryID, reverse=True)
 
-        rank_items.extend([RankItem(self._make_item(current_workspace, window, query), 1) for window in windows])
-
+        rank_items.extend([RankItem(self._make_item(current_workspace, window), 1) for window in windows])
         return rank_items
 
-    def _make_item(self, workspace_id: int, window: Window, query: Query) -> Item:
+    def _make_item(self, workspace_id: int, window: Window) -> Item:
         return StandardItem(
             id=str(window.address),
             text=f"Window: {window.name}",
             subtext=window.title,
             input_action_text="Window %s" % window.name,
-            icon_factory=lambda: makeThemeIcon(str(window.icon)),
+            icon_factory=lambda: makeComposedIcon(
+                makeThemeIcon(str(window.icon)), makeThemeIcon("window-symbolic"), size1=1.0, size2=0.4
+            ),
             actions=[
                 Action(
                     "Switch",
@@ -222,7 +218,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         )
 
     def _focus_window(self, window: Window) -> None:
-        runDetachedProcess(
+        runDetachedProcess(  # pyright: ignore[reportUnusedCallResult]
             [
                 "hyprctl",
                 "dispatch",
@@ -232,7 +228,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         )
 
     def _move_window_here(self, window: Window, workspace_id: int) -> None:
-        runDetachedProcess(
+        runDetachedProcess(  # pyright: ignore[reportUnusedCallResult]
             [
                 "hyprctl",
                 "dispatch",
@@ -241,7 +237,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
             ]
         )
 
-        runDetachedProcess(
+        runDetachedProcess(  # pyright: ignore[reportUnusedCallResult]
             [
                 "hyprctl",
                 "dispatch",
@@ -251,7 +247,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         )
 
     def _close_window(self, window: Window) -> None:
-        runDetachedProcess(
+        runDetachedProcess(  # pyright: ignore[reportUnusedCallResult]
             [
                 "hyprctl",
                 "dispatch",
@@ -260,6 +256,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
             ]
         )
 
+    @override
     def configWidget(self):
         return [
             {
