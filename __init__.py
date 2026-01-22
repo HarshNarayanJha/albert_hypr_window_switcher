@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Harsh Narayan Jha
+# Copyright (c) 2026 Harsh Narayan Jha
 
 """
 This plugin allows you to quickly search through and switch to open windows on Hyprland
@@ -13,23 +13,22 @@ from pathlib import Path
 from shutil import which
 from typing import Any, override
 
-from albert import (  # pyright: ignore[reportMissingModuleSource]
+from albert import (
     Action,
     GlobalQueryHandler,
+    Icon,
     Item,
     MatchConfig,
     Matcher,
     PluginInstance,
-    Query,
+    QueryContext,
     RankItem,
     StandardItem,
-    makeComposedIcon,
-    makeThemeIcon,
     runDetachedProcess,
 )
 
-md_iid = "4.0"
-md_version = "2.1"
+md_iid = "5.0"
+md_version = "3.0"
 md_name = "Hyprland Window Switcher"
 md_description = "Switch to your open windows on Hyprland swiftly"
 md_license = "MIT"
@@ -56,7 +55,7 @@ class Window:
     xwayland: bool
     pinned: bool
     fullscreen: bool
-    grouped: list[str]
+    grouped: tuple[str]
     focusHistoryID: int
     name: str
     icon: str
@@ -77,7 +76,7 @@ class Window:
         xwayland: bool,
         pinned: bool,
         fullscreen: bool,
-        grouped: list[str],
+        grouped: tuple[str],
         focusHistoryID: int,
         **kwargs: dict[str, str],
     ) -> None:
@@ -173,13 +172,16 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         return "<window title|app name>"
 
     @override
-    def handleGlobalQuery(self, query: Query) -> list[RankItem]:
+    def rankItems(self, context: QueryContext) -> list[RankItem]:
+        if not context.isValid:
+            return []
+
         rank_items: list[RankItem] = []
 
         windows = Window.list_windows()
         current_workspace = Window.current_workspace_id()
 
-        m = Matcher(query.string, MatchConfig(fuzzy=self.fuzzy))
+        m = Matcher(context.query, MatchConfig(fuzzy=self.fuzzy))
 
         windows = [w for w in windows if m.match(w.classs) or m.match(w.name) or m.match(w.title)]
 
@@ -195,9 +197,8 @@ class Plugin(PluginInstance, GlobalQueryHandler):
             text=f"Window: {window.name}",
             subtext=window.title,
             input_action_text="Window %s" % window.name,
-            icon_factory=lambda: makeComposedIcon(
-                makeThemeIcon(str(window.icon)), makeThemeIcon("window-symbolic"), size1=1.0, size2=0.4
-            ),
+            # Icon.theme("window-symbolic") doesn't work as of now
+            icon_factory=lambda: Icon.composed(Icon.theme(window.icon), Icon.grapheme("🪟"), size1=1.0, size2=0.4),
             actions=[
                 Action(
                     "Switch",
@@ -218,7 +219,7 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         )
 
     def _focus_window(self, window: Window) -> None:
-        runDetachedProcess(  # pyright: ignore[reportUnusedCallResult]
+        runDetachedProcess(
             [
                 "hyprctl",
                 "dispatch",
@@ -228,26 +229,17 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         )
 
     def _move_window_here(self, window: Window, workspace_id: int) -> None:
-        runDetachedProcess(  # pyright: ignore[reportUnusedCallResult]
-            [
-                "hyprctl",
-                "dispatch",
-                "focuswindow",
-                f"address:{window.address}",
-            ]
-        )
-
-        runDetachedProcess(  # pyright: ignore[reportUnusedCallResult]
+        runDetachedProcess(
             [
                 "hyprctl",
                 "dispatch",
                 "movetoworkspace",
-                str(workspace_id),
+                f"{workspace_id},address:{window.address}",
             ]
         )
 
     def _close_window(self, window: Window) -> None:
-        runDetachedProcess(  # pyright: ignore[reportUnusedCallResult]
+        runDetachedProcess(
             [
                 "hyprctl",
                 "dispatch",

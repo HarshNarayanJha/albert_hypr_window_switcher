@@ -10,7 +10,7 @@ Or just run `git clone https://github.com/HarshNarayanJha/albert_hypr_window_swi
 
 ### Development Setup
 
-I use the Zed Editor (naturally). Python Developement includes `pyright` as `lsp` and `ruff` as `linter`.
+I use the Zed Editor (naturally). Python Development includes `pyright` as `lsp` and `ruff` as `linter`.
 
 Copy the `albert.pyi` file from `~/.local/share/albert/python/plugins/albert.pyi` to this directory for type definitions and completions!
 

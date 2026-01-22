@@ -1,6 +1,6 @@
 [project]
 name = "albert-hypr-window-switcher"
-version = "2.1"
+version = "3.0"
 description = "Switch to your open windows on Hyprland swiftly"
 readme = "README.md"
 license = "LICENSE"
