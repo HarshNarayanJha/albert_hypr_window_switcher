@@ -28,7 +28,7 @@ from albert import (
 )
 
 md_iid = "5.0"
-md_version = "3.0"
+md_version = "4.0"
 md_name = "Hyprland Window Switcher"
 md_description = "Switch to your open windows on Hyprland swiftly"
 md_license = "MIT"
@@ -219,34 +219,16 @@ class Plugin(PluginInstance, GlobalQueryHandler):
         )
 
     def _focus_window(self, window: Window) -> None:
-        runDetachedProcess(
-            [
-                "hyprctl",
-                "dispatch",
-                "focuswindow",
-                f"address:{window.address}",
-            ]
-        )
+        dispatcher = f'hl.dsp.focus({{ window = "address:{window.address}" }})'
+        runDetachedProcess(["hyprctl", "dispatch", dispatcher])
 
     def _move_window_here(self, window: Window, workspace_id: int) -> None:
-        runDetachedProcess(
-            [
-                "hyprctl",
-                "dispatch",
-                "movetoworkspace",
-                f"{workspace_id},address:{window.address}",
-            ]
-        )
+        dispatcher = f'hl.dsp.window.move({{ workspace = "{workspace_id}", window = "address:{window.address}" }})'
+        runDetachedProcess(["hyprctl", "dispatch", dispatcher])
 
     def _close_window(self, window: Window) -> None:
-        runDetachedProcess(
-            [
-                "hyprctl",
-                "dispatch",
-                "closewindow",
-                f"address:{window.address}",
-            ]
-        )
+        dispatcher = f'hl.dsp.window.close({{ window = "address:{window.address}" }})'
+        runDetachedProcess(["hyprctl", "dispatch", dispatcher])
 
     @override
     def configWidget(self):
